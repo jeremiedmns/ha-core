@@ -1,6 +1,7 @@
 """Tests for the Shelly integration."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
 from datetime import timedelta
 from typing import Any
@@ -77,11 +78,9 @@ def inject_rpc_device_event(
     mock_rpc_device.mock_event()
 
 
-async def mock_rest_update(hass: HomeAssistant):
+async def mock_rest_update(hass: HomeAssistant, seconds=REST_SENSORS_UPDATE_INTERVAL):
     """Move time to create REST sensors update event."""
-    async_fire_time_changed(
-        hass, dt.utcnow() + timedelta(seconds=REST_SENSORS_UPDATE_INTERVAL)
-    )
+    async_fire_time_changed(hass, dt.utcnow() + timedelta(seconds=seconds))
     await hass.async_block_till_done()
 
 
@@ -99,6 +98,7 @@ def register_entity(
     object_id: str,
     unique_id: str,
     config_entry: ConfigEntry | None = None,
+    capabilities: Mapping[str, Any] | None = None,
 ) -> str:
     """Register enabled entity, return entity_id."""
     entity_registry = async_get(hass)
@@ -109,6 +109,7 @@ def register_entity(
         suggested_object_id=object_id,
         disabled_by=None,
         config_entry=config_entry,
+        capabilities=capabilities,
     )
     return f"{domain}.{object_id}"
 

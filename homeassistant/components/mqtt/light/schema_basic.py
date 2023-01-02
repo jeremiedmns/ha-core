@@ -136,7 +136,6 @@ MQTT_LIGHT_ATTRIBUTES_BLOCKED = frozenset(
 
 DEFAULT_BRIGHTNESS_SCALE = 255
 DEFAULT_NAME = "MQTT LightEntity"
-DEFAULT_OPTIMISTIC = False
 DEFAULT_PAYLOAD_OFF = "OFF"
 DEFAULT_PAYLOAD_ON = "ON"
 DEFAULT_WHITE_SCALE = 255
@@ -195,7 +194,6 @@ _PLATFORM_SCHEMA_BASE = (
             vol.Optional(CONF_ON_COMMAND_TYPE, default=DEFAULT_ON_COMMAND_TYPE): vol.In(
                 VALUES_ON_COMMAND_TYPE
             ),
-            vol.Optional(CONF_OPTIMISTIC, default=DEFAULT_OPTIMISTIC): cv.boolean,
             vol.Optional(CONF_PAYLOAD_OFF, default=DEFAULT_PAYLOAD_OFF): cv.string,
             vol.Optional(CONF_PAYLOAD_ON, default=DEFAULT_PAYLOAD_ON): cv.string,
             vol.Optional(CONF_RGB_COMMAND_TEMPLATE): cv.template,
@@ -224,7 +222,7 @@ _PLATFORM_SCHEMA_BASE = (
     .extend(MQTT_LIGHT_SCHEMA_SCHEMA.schema)
 )
 
-# The use of PLATFORM_SCHEMA is deprecated in HA Core 2022.6
+# The use of PLATFORM_SCHEMA was deprecated in HA Core 2022.6
 PLATFORM_SCHEMA_BASIC = vol.All(
     cv.PLATFORM_SCHEMA.extend(_PLATFORM_SCHEMA_BASE.schema),
 )
@@ -415,11 +413,9 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
             supported_color_modes
         )
 
-        supported_features: int = 0
-        supported_features |= (
-            topic[CONF_EFFECT_COMMAND_TOPIC] is not None and LightEntityFeature.EFFECT
-        )
-        self._attr_supported_features = supported_features
+        self._attr_supported_features = LightEntityFeature(0)
+        if topic[CONF_EFFECT_COMMAND_TOPIC] is not None:
+            self._attr_supported_features |= LightEntityFeature.EFFECT
 
     def _is_optimistic(self, attribute: str) -> bool:
         """Return True if the attribute is optimistically updated."""
@@ -625,7 +621,7 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
                 self._attr_hs_color = cast(tuple[float, float], hs_color)
                 get_mqtt_data(self.hass).state_write_requests.write_state_request(self)
             except ValueError:
-                _LOGGER.debug("Failed to parse hs state update: '%s'", payload)
+                _LOGGER.warning("Failed to parse hs state update: '%s'", payload)
 
         add_topic(CONF_HS_STATE_TOPIC, hs_received)
 
@@ -682,7 +678,7 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         restore_state(ATTR_HS_COLOR, ATTR_XY_COLOR)
 
     @property
-    def assumed_state(self):
+    def assumed_state(self) -> bool:
         """Return true if we do optimistic updates."""
         return self._optimistic
 
